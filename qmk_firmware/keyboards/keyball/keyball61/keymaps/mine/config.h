@@ -32,6 +32,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #undef  RGBLED_NUM
 #define RGBLED_NUM 37
 
+// keyball61.c の keyball_on_adjust_layout() を keymap.c 側で上書きする
+#define KEYBALL_ADJUST_LAYOUT_USER
+
 #define TAP_CODE_DELAY 5
 
 #define POINTING_DEVICE_AUTO_MOUSE_ENABLE

@@ -62,6 +62,15 @@ layer_state_t layer_state_set_user(layer_state_t state) {
     return state;
 }
 
+#ifdef RGBLIGHT_ENABLE
+// 左右非同期のため、自分側のLEDだけを描画・エフェクト対象にする
+void keyball_on_adjust_layout(keyball_adjust_t v) {
+    uint8_t lednum_this = keyball.this_have_ball ? 34 : 37;
+    rgblight_set_clipping_range(0, lednum_this);
+    rgblight_set_effect_range(0, lednum_this);
+}
+#endif
+
 #ifdef OLED_ENABLE
 
 #    include "lib/oledkit/oledkit.h"
