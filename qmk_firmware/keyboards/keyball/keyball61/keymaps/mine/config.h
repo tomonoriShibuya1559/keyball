@@ -35,6 +35,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // keyball61.c の keyball_on_adjust_layout() を keymap.c 側で上書きする
 #define KEYBALL_ADJUST_LAYOUT_USER
 
+// レイヤー状態だけは左右で共有する（レイヤー連動ライティング用）
+#define SPLIT_LAYER_STATE_ENABLE
+
 #define TAP_CODE_DELAY 5
 
 #define POINTING_DEVICE_AUTO_MOUSE_ENABLE

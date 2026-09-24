@@ -69,6 +69,35 @@ void keyball_on_adjust_layout(keyball_adjust_t v) {
     rgblight_set_clipping_range(0, lednum_this);
     rgblight_set_effect_range(0, lednum_this);
 }
+
+// レイヤーごとの色相（0 = 消灯）
+#define LAYER_HUE_1 170 // 青
+#define LAYER_HUE_2 85  // 緑
+#define LAYER_HUE_3 0   // 赤
+
+static void update_layer_light(uint8_t layer) {
+    // RGB_TOG で保存済みの設定がOFFなら光らせない
+    rgblight_config_t saved = {.raw = eeconfig_read_rgblight()};
+    if (layer == 0 || !saved.enable) {
+        rgblight_disable_noeeprom();
+        return;
+    }
+
+    uint8_t hue = layer == 1 ? LAYER_HUE_1 : layer == 2 ? LAYER_HUE_2 : LAYER_HUE_3;
+    rgblight_enable_noeeprom();
+    rgblight_mode_noeeprom(RGBLIGHT_MODE_STATIC_LIGHT);
+    rgblight_sethsv_noeeprom(hue, 255, rgblight_get_val());
+}
+
+// 左右両方で実行される（レイヤー状態は SPLIT_LAYER_STATE_ENABLE で共有）
+void housekeeping_task_user(void) {
+    static uint8_t last_layer = 0xFF;
+    uint8_t        layer      = get_highest_layer(layer_state);
+    if (layer != last_layer) {
+        last_layer = layer;
+        update_layer_light(layer);
+    }
+}
 #endif
 
 #ifdef OLED_ENABLE
