@@ -95,27 +95,49 @@ void keyball_on_adjust_layout(keyball_adjust_t v) {
     rgblight_set_effect_range(0, lednum_this);
 }
 
-// レイヤーごとの色相（0 = 消灯）
-#define LAYER_HUE_1 170 // 青
-#define LAYER_HUE_2 85  // 緑
-#define LAYER_HUE_3 0   // 赤
-#define LAYER_HUE_4 43  // 黄（オートマウス）
+typedef struct {
+    bool    lit;
+    uint8_t hue;
+    // オレンジ・水色などの混色は2チャンネル同時点灯で単色の約2倍の電流が流れ、
+    // USB給電不足でスレーブ側がリセットされるため、明るさを半分に抑える
+    bool dim;
+} layer_light_t;
+
+// 色相（QMK の HSV_* の色相部分）
+#define HUE_RED 0
+#define HUE_ORANGE 21
+#define HUE_GREEN 85
+#define HUE_CYAN 128
+#define HUE_BLUE 170
+
+// clang-format off
+// [レイヤー][0 = 左, 1 = 右]
+static const layer_light_t LAYER_LIGHTS[][2] = {
+    [0] = {{false},                    {false}},
+    [1] = {{true, HUE_ORANGE, true},   {true, HUE_CYAN,  true}},
+    [2] = {{false},                    {false}},
+    [3] = {{true, HUE_RED,    false},  {true, HUE_BLUE,  false}},
+    [4] = {{true, HUE_GREEN,  false},  {true, HUE_GREEN, false}},
+};
+// clang-format on
 
 static void update_layer_light(uint8_t layer) {
     // RGB_TOG で保存済みの設定がOFFなら光らせない
     rgblight_config_t saved = {.raw = eeconfig_read_rgblight()};
-    if (layer == 0 || !saved.enable) {
+    layer_light_t     light = {false};
+    if (layer < sizeof(LAYER_LIGHTS) / sizeof(LAYER_LIGHTS[0])) {
+        light = LAYER_LIGHTS[layer][is_keyboard_left() ? 0 : 1];
+    }
+    if (!light.lit || !saved.enable) {
         rgblight_disable_noeeprom();
         return;
     }
 
-    uint8_t hue = layer == 1 ? LAYER_HUE_1 : layer == 2 ? LAYER_HUE_2 : layer == 3 ? LAYER_HUE_3 : LAYER_HUE_4;
-    // 黄色は赤と緑の2色を同時に点灯するため、単色の約2倍の電流が流れる。
-    // USB給電が不足してスレーブ側がリセットされるので、明るさを半分にして単色並みに抑える
-    uint8_t val = layer == 4 ? rgblight_get_val() / 2 : rgblight_get_val();
+    // 現在値ではなく保存済みの明るさを基準にする（現在値だと半減が積み重なって消えてしまう）
+    uint8_t val = light.dim ? saved.val / 2 : saved.val;
     rgblight_enable_noeeprom();
     rgblight_mode_noeeprom(RGBLIGHT_MODE_STATIC_LIGHT);
-    rgblight_sethsv_noeeprom(hue, 255, val);
+    rgblight_sethsv_noeeprom(light.hue, 255, val);
 }
 
 // 左右両方で実行される（レイヤー状態は SPLIT_LAYER_STATE_ENABLE で共有）
