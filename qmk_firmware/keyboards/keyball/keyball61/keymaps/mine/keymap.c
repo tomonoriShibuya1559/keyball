@@ -110,9 +110,12 @@ static void update_layer_light(uint8_t layer) {
     }
 
     uint8_t hue = layer == 1 ? LAYER_HUE_1 : layer == 2 ? LAYER_HUE_2 : layer == 3 ? LAYER_HUE_3 : LAYER_HUE_4;
+    // 黄色は赤と緑の2色を同時に点灯するため、単色の約2倍の電流が流れる。
+    // USB給電が不足してスレーブ側がリセットされるので、明るさを半分にして単色並みに抑える
+    uint8_t val = layer == 4 ? rgblight_get_val() / 2 : rgblight_get_val();
     rgblight_enable_noeeprom();
     rgblight_mode_noeeprom(RGBLIGHT_MODE_STATIC_LIGHT);
-    rgblight_sethsv_noeeprom(hue, 255, rgblight_get_val());
+    rgblight_sethsv_noeeprom(hue, 255, val);
 }
 
 // 左右両方で実行される（レイヤー状態は SPLIT_LAYER_STATE_ENABLE で共有）
