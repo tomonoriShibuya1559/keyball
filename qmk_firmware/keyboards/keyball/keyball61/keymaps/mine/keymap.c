@@ -65,6 +65,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 };
 // clang-format on
 
+void keyboard_post_init_user(void) {
+    // オートマウスの判定はUSB側（マスター）だけで行う。
+    // スレーブ側でも有効だと、同期されたレイヤー4を自分のタイマーで消そうとして
+    // レイヤーとLEDが毎ループ切り替わり、左右通信を妨げてしまう
+    if (!is_keyboard_master()) {
+        set_auto_mouse_enable(false);
+    }
+}
+
 layer_state_t layer_state_set_user(layer_state_t state) {
     // レイヤー3が有効な間はスクロールモード
     // ・オートマウスのレイヤー4が上に重なっても解除されないよう最上位レイヤーでは判定しない
