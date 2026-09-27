@@ -53,12 +53,28 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     _______  , _______  , SCRL_DVD , SCRL_DVI , SCRL_MO  , SCRL_TO  , EE_CLR   ,            EE_CLR   , KC_HOME  , KC_PGDN  , KC_PGUP  , KC_END   , _______  , _______  ,
     QK_BOOT  , _______  , KC_LEFT  , KC_DOWN  , KC_UP    , KC_RGHT  , _______  ,            _______  , KC_BSPC  , _______  , _______  , _______  , _______  , QK_BOOT
   ),
+
+  // オートマウスレイヤー: J=左クリック, K=ホイール押し込み, L=右クリック, ;=押している間スクロール
+  [4] = LAYOUT_universal(
+    _______  , _______  , _______  , _______  , _______  , _______  ,                                  _______  , _______  , _______  , _______  , _______  , _______  ,
+    _______  , _______  , _______  , _______  , _______  , _______  ,                                  _______  , _______  , _______  , _______  , _______  , _______  ,
+    _______  , _______  , _______  , _______  , _______  , _______  ,                                  _______  , KC_BTN1  , KC_BTN3  , KC_BTN2  , SCRL_MO  , _______  ,
+    _______  , _______  , _______  , _______  , _______  , _______  , _______  ,            _______  , _______  , _______  , _______  , _______  , _______  , _______  ,
+    _______  , _______  , _______  , _______  , _______  , _______  , _______  ,            _______  , _______  , _______  , _______  , _______  , _______  , _______
+  ),
 };
 // clang-format on
 
 layer_state_t layer_state_set_user(layer_state_t state) {
-    // Auto enable scroll mode when the highest layer is 3
-    keyball_set_scroll_mode(get_highest_layer(state) == 3);
+    // レイヤー3が有効な間はスクロールモード
+    // ・オートマウスのレイヤー4が上に重なっても解除されないよう最上位レイヤーでは判定しない
+    // ・レイヤー4の SCRL_MO を妨げないよう、レイヤー3のON/OFFが変わった時だけ切り替える
+    static bool was_layer3 = false;
+    bool        is_layer3  = layer_state_cmp(state, 3);
+    if (is_layer3 != was_layer3) {
+        was_layer3 = is_layer3;
+        keyball_set_scroll_mode(is_layer3);
+    }
     return state;
 }
 
@@ -74,6 +90,7 @@ void keyball_on_adjust_layout(keyball_adjust_t v) {
 #define LAYER_HUE_1 170 // 青
 #define LAYER_HUE_2 85  // 緑
 #define LAYER_HUE_3 0   // 赤
+#define LAYER_HUE_4 43  // 黄（オートマウス）
 
 static void update_layer_light(uint8_t layer) {
     // RGB_TOG で保存済みの設定がOFFなら光らせない
@@ -83,7 +100,7 @@ static void update_layer_light(uint8_t layer) {
         return;
     }
 
-    uint8_t hue = layer == 1 ? LAYER_HUE_1 : layer == 2 ? LAYER_HUE_2 : LAYER_HUE_3;
+    uint8_t hue = layer == 1 ? LAYER_HUE_1 : layer == 2 ? LAYER_HUE_2 : layer == 3 ? LAYER_HUE_3 : LAYER_HUE_4;
     rgblight_enable_noeeprom();
     rgblight_mode_noeeprom(RGBLIGHT_MODE_STATIC_LIGHT);
     rgblight_sethsv_noeeprom(hue, 255, rgblight_get_val());

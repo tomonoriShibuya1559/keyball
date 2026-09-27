@@ -40,5 +40,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #define TAP_CODE_DELAY 5
 
+// ボール操作後の一定時間だけ、マウス専用のレイヤー4に切り替える
 #define POINTING_DEVICE_AUTO_MOUSE_ENABLE
-#define AUTO_MOUSE_DEFAULT_LAYER 2
+#define AUTO_MOUSE_DEFAULT_LAYER 4
+
+// VIA のデフォルトは4レイヤーまでなので、レイヤー4を含む5レイヤーに拡張する
+#define DYNAMIC_KEYMAP_LAYER_COUNT 5
