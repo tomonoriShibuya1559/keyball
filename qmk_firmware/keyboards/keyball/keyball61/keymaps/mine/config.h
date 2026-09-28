@@ -20,12 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
-#ifdef RGBLIGHT_ENABLE
-#    define RGBLIGHT_EFFECT_BREATHING
-#    define RGBLIGHT_EFFECT_RAINBOW_SWIRL
-#    define RGBLIGHT_EFFECT_KNIGHT
-#    define RGBLIGHT_EFFECT_STATIC_GRADIENT
-#endif
+// LEDのアニメーションは led_anim.c で自前描画するため、QMK標準のエフェクトはビルドしない
+
+// レイヤー4の光のスクロール用に、マスター側のボールの移動量をスレーブへ送る
+#define SPLIT_TRANSACTION_IDS_USER USER_SYNC_LED_MOTION
 
 // 左右同期を切る
 #undef  RGBLED_SPLIT

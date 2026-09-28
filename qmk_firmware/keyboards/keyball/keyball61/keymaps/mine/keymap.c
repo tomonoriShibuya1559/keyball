@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include QMK_KEYBOARD_H
 
 #include "quantum.h"
+#include "led_anim.h"
 
 // clang-format off
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -72,6 +73,7 @@ void keyboard_post_init_user(void) {
     if (!is_keyboard_master()) {
         set_auto_mouse_enable(false);
     }
+    led_anim_init();
 }
 
 layer_state_t layer_state_set_user(layer_state_t state) {
@@ -83,73 +85,34 @@ layer_state_t layer_state_set_user(layer_state_t state) {
     if (is_layer3 != was_layer3) {
         was_layer3 = is_layer3;
         keyball_set_scroll_mode(is_layer3);
+        // レイヤー3に入ったら入力モードを半角英数にする（キー送信はUSB側だけ）
+        if (is_layer3 && is_keyboard_master()) {
+            tap_code(KC_LNG2);
+        }
     }
     return state;
 }
 
-#ifdef RGBLIGHT_ENABLE
-// 左右非同期のため、自分側のLEDだけを描画・エフェクト対象にする
-void keyball_on_adjust_layout(keyball_adjust_t v) {
-    uint8_t lednum_this = keyball.this_have_ball ? 34 : 37;
-    rgblight_set_clipping_range(0, lednum_this);
-    rgblight_set_effect_range(0, lednum_this);
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    // オートマウスのレイヤー4中に左手側のキーを押したら、キーの種類に関係なくレイヤー4を抜ける
+    // （標準では修飾キーや、ボールを動かした直後のキー入力では抜けないため）
+    // レイヤーを消すだけでなく判定状態もリセットし、ボールの惰性ですぐ再点灯しないようにする
+    bool is_left_key = record->event.key.row < MATRIX_ROWS / 2;
+    if (record->event.pressed && is_left_key && layer_state_is(AUTO_MOUSE_DEFAULT_LAYER)) {
+        auto_mouse_reset_trigger(true);
+    }
+    return true;
 }
 
-typedef struct {
-    bool    lit;
-    uint8_t hue;
-    // オレンジ・水色などの混色は2チャンネル同時点灯で単色の約2倍の電流が流れ、
-    // USB給電不足でスレーブ側がリセットされるため、明るさを半分に抑える
-    bool dim;
-} layer_light_t;
-
-// 色相（QMK の HSV_* の色相部分）
-#define HUE_RED 0
-#define HUE_ORANGE 21
-#define HUE_GREEN 85
-#define HUE_CYAN 128
-#define HUE_BLUE 170
-
-// clang-format off
-// [レイヤー][0 = 左, 1 = 右]
-static const layer_light_t LAYER_LIGHTS[][2] = {
-    [0] = {{false},                    {false}},
-    [1] = {{true, HUE_ORANGE, true},   {true, HUE_CYAN,  true}},
-    [2] = {{false},                    {false}},
-    [3] = {{true, HUE_RED,    false},  {true, HUE_BLUE,  false}},
-    [4] = {{true, HUE_GREEN,  false},  {true, HUE_GREEN, false}},
-};
-// clang-format on
-
-static void update_layer_light(uint8_t layer) {
-    // RGB_TOG で保存済みの設定がOFFなら光らせない
-    rgblight_config_t saved = {.raw = eeconfig_read_rgblight()};
-    layer_light_t     light = {false};
-    if (layer < sizeof(LAYER_LIGHTS) / sizeof(LAYER_LIGHTS[0])) {
-        light = LAYER_LIGHTS[layer][is_keyboard_left() ? 0 : 1];
-    }
-    if (!light.lit || !saved.enable) {
-        rgblight_disable_noeeprom();
-        return;
-    }
-
-    // 現在値ではなく保存済みの明るさを基準にする（現在値だと半減が積み重なって消えてしまう）
-    uint8_t val = light.dim ? saved.val / 2 : saved.val;
-    rgblight_enable_noeeprom();
-    rgblight_mode_noeeprom(RGBLIGHT_MODE_STATIC_LIGHT);
-    rgblight_sethsv_noeeprom(light.hue, 255, val);
+report_mouse_t pointing_device_task_user(report_mouse_t report) {
+    led_anim_add_motion(report.x, report.y);
+    return report;
 }
 
 // 左右両方で実行される（レイヤー状態は SPLIT_LAYER_STATE_ENABLE で共有）
 void housekeeping_task_user(void) {
-    static uint8_t last_layer = 0xFF;
-    uint8_t        layer      = get_highest_layer(layer_state);
-    if (layer != last_layer) {
-        last_layer = layer;
-        update_layer_light(layer);
-    }
+    led_anim_task();
 }
-#endif
 
 #ifdef OLED_ENABLE
 
