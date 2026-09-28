@@ -12,12 +12,12 @@
 
 #    define LED_COUNT_BALL_SIDE 34
 #    define LED_COUNT_NOBALL_SIDE 37
-// レイヤー0で明滅させるLED（シルク番号8 = 左手の外側最上段 = ESC）
-#    define ESC_LED_INDEX 7
+// レイヤー0で明滅させる左手のLED（シルク番号25 = ESC）
+#    define ESC_LED_INDEX 24
 
-// 座標の単位: キー1つ分 = 16
-#    define POS_MAX_D 96 // 中央からの距離の最大（外側の列）
-#    define POS_MAX_Y 64 // 上端からの距離の最大（最下段）
+// 座標の単位: キー1つ分 ≒ 16
+#    define POS_MAX_D 102 // 中央からの距離の最大（外側の列）
+#    define POS_MAX_Y 80  // 上端からの距離の最大（最下段）
 #    define CENTER_GAP 8 // 左右の間の空き（レイヤー4の模様を左右でつなげるため）
 
 // 起動時: 中央から外側へ流れる光
@@ -44,19 +44,31 @@ typedef struct {
 } led_pos_t;
 
 // clang-format off
-// インデックス = 基板シルクのLED番号 - 1。左右は同じ基板を裏返して使うので、
-// 中央からの距離で表せば左右共通の表になる。
-// 1〜7 は裏面のアンダーグロー、35〜37 はボール無し側の親指キーのみ（位置は推定）
-static const led_pos_t PROGMEM LED_POS[LED_COUNT_NOBALL_SIDE] = {
-    { 0, 60}, {24, 52}, {40, 52}, {96, 56}, {96, 24}, {72,  4}, {40,  4}, //  1- 7
-    {96,  0}, {96, 16}, {96, 32}, {96, 48}, {96, 64},                     //  8-12 外側の列
-    {80,  0}, {80, 16}, {80, 32}, {80, 48}, {80, 64},                     // 13-17
-    {64,  0}, {64, 16}, {64, 32}, {64, 48},                               // 18-21
-    {48,  0}, {48, 16}, {48, 32}, {48, 48},                               // 22-25
-    {32,  0}, {32, 16}, {32, 32}, {32, 48},                               // 26-29
-    {16,  0}, {16, 16}, {16, 32}, {16, 48},                               // 30-33 内側の列
-    { 0, 56},                                                             // 34    親指
-    {32, 64}, {48, 64}, {64, 64},                                         // 35-37
+// インデックス = 基板シルクのLED番号 - 1。Keyball61 rev2 の基板写真から実際の位置を読み取った。
+// 左右で配線順がまったく違うため表を分けている。
+// 左手: 1〜29 がキー、30〜37 が裏面のアンダーグロー
+static const led_pos_t PROGMEM LED_POS_LEFT[LED_COUNT_NOBALL_SIDE] = {
+    {  1, 63},                                                  //  1    親指
+    { 19,  7}, { 19, 23}, { 20, 40}, { 21, 57},                 //  2- 5 内側の列
+    { 36,  3}, { 37, 21}, { 37, 38}, { 38, 55},                 //  6- 9
+    { 53,  1}, { 53, 18}, { 54, 35}, { 54, 51}, { 55, 68},      // 10-14
+    { 69,  6}, { 69, 22}, { 69, 38}, { 70, 55}, { 70, 71},      // 15-19
+    { 85, 12}, { 85, 27}, { 85, 43}, { 86, 61}, { 86, 77},      // 20-24
+    { 99, 12}, { 99, 27}, { 99, 43}, {100, 60}, {100, 78},      // 25-29 外側の列（25 = ESC）
+    { 43,  7}, { 77,  9}, { 98, 31}, {100, 62}, { 71, 60},      // 30-34 アンダーグロー
+    { 39, 60}, { 25, 68}, {  5, 69},                            // 35-37 アンダーグロー
+};
+// 右手（ボール側）: 1 が親指、2〜7 が裏面のアンダーグロー、8〜34 がキー
+static const led_pos_t PROGMEM LED_POS_RIGHT[LED_COUNT_BALL_SIDE] = {
+    {  4, 62},                                                  //  1    親指
+    { 26, 51}, { 41, 51}, {101, 65}, {100, 31}, { 73,  5}, { 41,  2}, //  2- 7 アンダーグロー
+    { 99, 11}, {100, 27}, {100, 43}, {101, 61}, {102, 80},      //  8-12 外側の列
+    { 84, 12}, { 84, 27}, { 84, 43}, { 84, 59}, { 84, 79},      // 13-17
+    { 67,  6}, { 67, 21}, { 67, 37}, { 67, 53},                 // 18-21
+    { 51,  2}, { 51, 17}, { 51, 33}, { 51, 48},                 // 22-25
+    { 36,  5}, { 35, 19}, { 35, 34}, { 33, 51},                 // 26-29
+    { 21,  7}, { 20, 21}, { 19, 36}, { 17, 52},                 // 30-33 内側の列
+    {  2, 56},                                                  // 34    親指
 };
 // clang-format on
 
@@ -145,8 +157,7 @@ static bool is_finished(uint16_t elapsed) {
 }
 
 // 各LEDの明るさ（0〜255）
-static uint8_t brightness(uint8_t index, uint16_t elapsed, motion_t m) {
-    led_pos_t pos = {pgm_read_byte(&LED_POS[index].d), pgm_read_byte(&LED_POS[index].y)};
+static uint8_t brightness(uint8_t index, led_pos_t pos, uint16_t elapsed, motion_t m) {
     switch (state.light.anim) {
         case ANIM_BOOT: {
             // 先頭が一番明るく、後ろに向かって尾を引いて消える
@@ -194,10 +205,17 @@ static void render(uint16_t elapsed) {
     if (state.light.dim) {
         val /= 2;
     }
-    RGB     base  = hsv_to_rgb((HSV){state.light.hue, 255, val});
-    uint8_t count = keyball.this_have_ball ? LED_COUNT_BALL_SIDE : LED_COUNT_NOBALL_SIDE;
+    RGB base = hsv_to_rgb((HSV){state.light.hue, 255, val});
+
+    const led_pos_t *table = LED_POS_LEFT;
+    uint8_t          count = LED_COUNT_NOBALL_SIDE;
+    if (!is_keyboard_left()) {
+        table = LED_POS_RIGHT;
+        count = LED_COUNT_BALL_SIDE;
+    }
     for (uint8_t i = 0; i < count; i++) {
-        uint8_t b = brightness(i, elapsed, m);
+        led_pos_t pos = {pgm_read_byte(&table[i].d), pgm_read_byte(&table[i].y)};
+        uint8_t   b   = brightness(i, pos, elapsed, m);
         setrgb(scale(base.r, b), scale(base.g, b), scale(base.b, b), &led[i]);
     }
     rgblight_set();

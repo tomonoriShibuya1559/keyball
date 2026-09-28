@@ -76,6 +76,27 @@ void keyboard_post_init_user(void) {
     led_anim_init();
 }
 
+// PCのIMEの状態は読めないので、最後に押された かな(LNG1)／英数(LNG2) キーで全角入力中かを推測する
+static bool is_kana_input = false;
+
+static void track_input_mode(uint16_t keycode, keyrecord_t *record) {
+    if (!record->event.pressed) {
+        return;
+    }
+    if (IS_QK_LAYER_TAP(keycode)) {
+        // レイヤーキーはタップした時だけ かな／英数 キーとして働く
+        if (record->tap.count == 0) {
+            return;
+        }
+        keycode = QK_LAYER_TAP_GET_TAP_KEYCODE(keycode);
+    }
+    if (keycode == KC_LNG1) {
+        is_kana_input = true;
+    } else if (keycode == KC_LNG2) {
+        is_kana_input = false;
+    }
+}
+
 layer_state_t layer_state_set_user(layer_state_t state) {
     // レイヤー3が有効な間はスクロールモード
     // ・オートマウスのレイヤー4が上に重なっても解除されないよう最上位レイヤーでは判定しない
@@ -85,9 +106,14 @@ layer_state_t layer_state_set_user(layer_state_t state) {
     if (is_layer3 != was_layer3) {
         was_layer3 = is_layer3;
         keyball_set_scroll_mode(is_layer3);
-        // レイヤー3に入ったら入力モードを半角英数にする（キー送信はUSB側だけ）
-        if (is_layer3 && is_keyboard_master()) {
-            tap_code(KC_LNG2);
+        // レイヤー3の間は入力モードを半角英数にし、抜けたら全角入力だった場合だけ元に戻す
+        // （キー送信はUSB側だけ。is_kana_input はここでは変えないので、抜ける時に元の状態がわかる）
+        if (is_keyboard_master()) {
+            if (is_layer3) {
+                tap_code(KC_LNG2);
+            } else if (is_kana_input) {
+                tap_code(KC_LNG1);
+            }
         }
     }
     return state;
@@ -101,6 +127,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     if (record->event.pressed && is_left_key && layer_state_is(AUTO_MOUSE_DEFAULT_LAYER)) {
         auto_mouse_reset_trigger(true);
     }
+    track_input_mode(keycode, record);
     return true;
 }
 
