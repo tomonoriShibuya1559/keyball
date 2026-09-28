@@ -119,12 +119,16 @@ layer_state_t layer_state_set_user(layer_state_t state) {
     return state;
 }
 
+// 左手の一番左下のキーのマトリクス位置（keyball61.h の L40）
+#define LEFT_BOTTOM_LEFT_ROW 4
+#define LEFT_BOTTOM_LEFT_COL 0
+
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    // オートマウスのレイヤー4中に左手側のキーを押したら、キーの種類に関係なくレイヤー4を抜ける
-    // （標準では修飾キーや、ボールを動かした直後のキー入力では抜けないため）
+    // オートマウスのレイヤー4中に左手の一番左下のキーを押したら、キーの割り当てに関係なくレイヤー4を抜ける
+    // （VIAでキーマップを変えても効くよう、キーコードではなく位置で判定する）
     // レイヤーを消すだけでなく判定状態もリセットし、ボールの惰性ですぐ再点灯しないようにする
-    bool is_left_key = record->event.key.row < MATRIX_ROWS / 2;
-    if (record->event.pressed && is_left_key && layer_state_is(AUTO_MOUSE_DEFAULT_LAYER)) {
+    bool is_exit_key = record->event.key.row == LEFT_BOTTOM_LEFT_ROW && record->event.key.col == LEFT_BOTTOM_LEFT_COL;
+    if (record->event.pressed && is_exit_key && layer_state_is(AUTO_MOUSE_DEFAULT_LAYER)) {
         auto_mouse_reset_trigger(true);
     }
     track_input_mode(keycode, record);
