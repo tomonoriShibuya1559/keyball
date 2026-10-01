@@ -123,12 +123,23 @@ layer_state_t layer_state_set_user(layer_state_t state) {
 #define LEFT_BOTTOM_LEFT_ROW 4
 #define LEFT_BOTTOM_LEFT_COL 0
 
+// オートマウスのレイヤー4を抜けるキーか
+// ・左手の一番左下のキー（キーの割り当てに関係なく）
+// ・レイヤー4で透過（VIAの▽）になっているキー。Shift やマウスボタンなど、
+//   レイヤー4で何か割り当てたキーだけはレイヤー4のまま使える
+// （VIAでキーマップを変えても効くよう、ソースのキーマップではなく現在のキーマップで判定する）
+static bool is_auto_mouse_exit_key(keypos_t key) {
+    if (key.row == LEFT_BOTTOM_LEFT_ROW && key.col == LEFT_BOTTOM_LEFT_COL) {
+        return true;
+    }
+    return keymap_key_to_keycode(AUTO_MOUSE_DEFAULT_LAYER, key) == KC_TRNS;
+}
+
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    // オートマウスのレイヤー4中に左手の一番左下のキーを押したら、キーの割り当てに関係なくレイヤー4を抜ける
-    // （VIAでキーマップを変えても効くよう、キーコードではなく位置で判定する）
+    // レイヤー4中に抜けるキーを押したら、レイヤー4を抜けてそのキーは下のレイヤーのキーとして入力する。
+    // QMK標準でもマウス以外のキーで抜けるが、ボールが動いている間や修飾キー・レイヤーキーでは抜けないため自前で判定する。
     // レイヤーを消すだけでなく判定状態もリセットし、ボールの惰性ですぐ再点灯しないようにする
-    bool is_exit_key = record->event.key.row == LEFT_BOTTOM_LEFT_ROW && record->event.key.col == LEFT_BOTTOM_LEFT_COL;
-    if (record->event.pressed && is_exit_key && layer_state_is(AUTO_MOUSE_DEFAULT_LAYER)) {
+    if (record->event.pressed && layer_state_is(AUTO_MOUSE_DEFAULT_LAYER) && is_auto_mouse_exit_key(record->event.key)) {
         auto_mouse_reset_trigger(true);
     }
     track_input_mode(keycode, record);

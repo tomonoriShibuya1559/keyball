@@ -12,8 +12,9 @@
 
 #    define LED_COUNT_BALL_SIDE 34
 #    define LED_COUNT_NOBALL_SIDE 37
-// レイヤー0で明滅させる左手のLED（シルク番号25 = ESC）
-#    define ESC_LED_INDEX 24
+// レイヤー0で明滅させるLED（インデックス = シルク番号 - 1）
+#    define BREATH_LED_INDEX_LEFT 24  // 左手 25 = ESC
+#    define BREATH_LED_INDEX_RIGHT 11 // 右手 12
 
 // 座標の単位: キー1つ分 ≒ 16
 #    define POS_MAX_D 102 // 中央からの距離の最大（外側の列）
@@ -26,7 +27,7 @@
 // レイヤー1・3: 順番に点灯していく速さと、1個が点き切るまでの幅
 #    define REVEAL_MS_PER_UNIT 4
 #    define REVEAL_RAMP 16
-// レイヤー0: ESCの明滅（2048ms周期。16bitタイマーの周期を割り切るので折り返しで乱れない）
+// レイヤー0: 左右1個ずつの明滅（2048ms周期。16bitタイマーの周期を割り切るので折り返しで乱れない）
 #    define BREATH_SHIFT 3
 // レイヤー4: ボールの移動量を模様の移動量にする割合（大きいほどゆっくり動く）
 #    define MOTION_SHIFT 1
@@ -75,7 +76,7 @@ static const led_pos_t PROGMEM LED_POS_RIGHT[LED_COUNT_BALL_SIDE] = {
 typedef enum {
     ANIM_OFF,
     ANIM_BOOT,   // 中央から外側へ流れて消える
-    ANIM_BREATH, // ESCだけ明滅
+    ANIM_BREATH, // 1個だけ明滅（左手25・右手12）
     ANIM_RISE,   // 下から順に点灯して点きっぱなし
     ANIM_SPREAD, // 中央から順に点灯して点きっぱなし
     ANIM_MOTION, // マウスカーソルの移動方向に模様がスクロール
@@ -95,7 +96,7 @@ static const light_t BOOT_LIGHT[2] = {{ANIM_BOOT, HUE_RED, false}, {ANIM_BOOT, H
 
 // [レイヤー][0 = 左, 1 = 右]
 static const light_t LAYER_LIGHTS[][2] = {
-    [0] = {{ANIM_BREATH, HUE_RED,    false}, {ANIM_OFF}},
+    [0] = {{ANIM_BREATH, HUE_RED,    false}, {ANIM_BREATH, HUE_BLUE,  false}},
     [1] = {{ANIM_RISE,   HUE_ORANGE, true},  {ANIM_RISE,   HUE_CYAN,  true}},
     [2] = {{ANIM_OFF},                       {ANIM_OFF}},
     [3] = {{ANIM_SPREAD, HUE_RED,    false}, {ANIM_SPREAD, HUE_BLUE,  false}},
@@ -168,7 +169,7 @@ static uint8_t brightness(uint8_t index, led_pos_t pos, uint16_t elapsed, motion
             return 255 - diff * 255 / BOOT_TAIL;
         }
         case ANIM_BREATH: {
-            if (index != ESC_LED_INDEX) {
+            if (index != (is_keyboard_left() ? BREATH_LED_INDEX_LEFT : BREATH_LED_INDEX_RIGHT)) {
                 return 0;
             }
             uint8_t t = triangle((uint8_t)(elapsed >> BREATH_SHIFT));
